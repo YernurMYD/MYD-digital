@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>CD-Player Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    h1 { margin-bottom: 16px; font-size: 1.4rem; color: #a0c4ff; }
+
+    #stage {
+      position: relative;
+      width: 640px;
+      height: 360px;
+      background: repeating-conic-gradient(#2a2a3e 0% 25%, #1e1e30 0% 50%) 0 0 / 20px 20px;
+      border: 2px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    cd-player { width: 100%; height: 100%; }
+
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      padding: 8px 16px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2a3e;
+      color: #e0e0e0;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    button:hover { background: #3a3a5e; }
+    button:active { background: #4a4a6e; }
+    button.active { border-color: #a0c4ff; color: #a0c4ff; }
+
+    #log {
+      margin-top: 16px;
+      width: 640px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #111;
+      border-radius: 6px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+    .log-entry { opacity: 0.7; }
+    .log-entry:last-child { opacity: 1; }
+
+    .url-input {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      width: 640px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #222;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+    }
+    .hint {
+      margin-top: 12px;
+      font-size: 0.75rem;
+      color: #888;
+      max-width: 640px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<h1>CD-Player — Demo</h1>
+
+<div id="stage">
+  <cd-player id="player"></cd-player>
+</div>
+
+<div class="url-input">
+  <input type="text" id="videoUrl"
+    placeholder="URL видео (mp4/webm) или перетащите файл на плеер" />
+  <button id="btnLoad">Загрузить</button>
+</div>
+
+<div class="controls">
+  <button id="btnPlay">Play</button>
+  <button id="btnPause">Pause</button>
+  <button id="btnSwap">Swap</button>
+  <button id="btnTiling">Tiling 2x2</button>
+  <button id="btnColor">Color Sampling</button>
+</div>
+
+<div id="log"></div>
+
+<div class="hint">
+  <strong>Как загрузить видео:</strong><br>
+  1) Вставьте URL в поле выше (любой публичный .mp4 / .webm)<br>
+  2) Или перетащите файл прямо на плеер (drag & drop)<br>
+  3) Или положите файл в <code>public/videos/</code> и введите имя файла<br>
+  <br>
+  <strong>Тестовые URL (бесплатные):</strong><br>
+  <code>https://www.w3schools.com/html/mov_bbb.mp4</code><br>
+  <code>https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm</code>
+</div>
+
+<script type="module">
+import '../src/mydigital/components/cd-player.js';
+
+const player = document.getElementById('player');
+const logEl  = document.getElementById('log');
+const urlInput = document.getElementById('videoUrl');
+
+let prepareSlot = 0;
+
+function log(msg) {
+  const ts = new Date().toLocaleTimeString('ru-RU');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.textContent = `[${ts}] ${msg}`;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+player.addEventListener('ready',     () => log('ready'));
+player.addEventListener('beginplay', () => log('beginplay — первое видео'));
+player.addEventListener('play',      () => log(`play — comment: "${player.comment()}"`));
+player.addEventListener('ended',     () => log('ended'));
+player.addEventListener('swapped',   () => log('swapped'));
+
+player.init();
+player.USE_CACHE_IN_DEV = true;
+log('init() вызван');
+
+// --- Загрузка видео по URL ---
+document.getElementById('btnLoad').addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) return;
+
+  log(`prepare("${url.slice(0, 60)}...")`);
+  try {
+    await player.prepare(url, `Video #${++prepareSlot}`);
+    log('prepare завершён — видео готово в буфере');
+
+    const swapped = await player.swapVideo();
+    log(swapped ? 'swapVideo() — переключено и играет' : 'swapVideo() — отменено');
+  } catch (err) {
+    log(`ОШИБКА: ${err.message}`);
+  }
+});
+
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('btnLoad').click();
+});
+
+// --- Drag & Drop ---
+const stage = document.getElementById('stage');
+stage.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  stage.style.borderColor = '#a0c4ff';
+});
+stage.addEventListener('dragleave', () => {
+  stage.style.borderColor = '#333';
+});
+stage.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  stage.style.borderColor = '#333';
+
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('video/')) {
+    log('Ошибка: перетащите видеофайл (.mp4, .webm)');
+    return;
+  }
+
+  const blobUrl = URL.createObjectURL(file);
+  log(`drop: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+
+  try {
+    await player.prepare(blobUrl, file.name);
+    log('prepare завершён');
+    await player.swapVideo();
+    log('swapVideo() — играет');
+  } catch (err) {
+    log(`ОШИБКА: ${err.message}`);
+  }
+});
+
+// --- Кнопки управления ---
+document.getElementById('btnPlay').addEventListener('click', () => {
+  player.play();
+  log('play()');
+});
+
+document.getElementById('btnPause').addEventListener('click', () => {
+  player.pause();
+  log('pause()');
+});
+
+document.getElementById('btnSwap').addEventListener('click', async () => {
+  const ok = await player.swapVideo();
+  log(ok ? 'swapVideo() — переключено' : 'swapVideo() — нет подготовленного видео');
+});
+
+let tilingOn = false;
+document.getElementById('btnTiling').addEventListener('click', () => {
+  tilingOn = !tilingOn;
+  player.enableTiling(tilingOn, 2, 2);
+  document.getElementById('btnTiling').classList.toggle('active', tilingOn);
+  log(tilingOn ? 'enableTiling(true, 2, 2)' : 'enableTiling(false)');
+});
+
+let colorOn = false;
+document.getElementById('btnColor').addEventListener('click', () => {
+  if (!colorOn) {
+    player.enableColorSampling();
+    colorOn = true;
+    document.getElementById('btnColor').classList.toggle('active', true);
+    log('enableColorSampling() — включено');
+
+    setInterval(() => {
+      if (!colorOn) return;
+      const c = player.rgbAvgAt(0, 100);
+      log(`rgbAvgAt(0, 100) → R:${c.r} G:${c.g} B:${c.b}`);
+    }, 2000);
+  }
+});
+</script>
+
+</body>
+</html>

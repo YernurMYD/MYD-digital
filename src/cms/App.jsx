@@ -11,6 +11,8 @@ import MediaPlanTimeline from './components/mediaplan/MediaPlanTimeline.jsx';
 import CampaignCreate from './components/campaigns/CampaignCreate.jsx';
 import CampaignDashboard from './components/campaigns/CampaignDashboard.jsx';
 import UserManagement from './components/users/UserManagement.tsx';
+import ScreenInventory from './components/screens/ScreenInventory.tsx';
+import { ToastContainer } from './components/common/Toast.tsx';
 
 const NAV = [
   { section: 'Мониторинг', items: [
@@ -19,6 +21,9 @@ const NAV = [
   { section: 'Кампании', items: [
     { id: '/campaigns', label: 'Список кампаний', icon: '▤', roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.AGENT, UserRole.CLIENT] },
     { id: '/campaigns/create', label: 'Создать кампанию', icon: '⊕', roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.AGENT] },
+  ]},
+  { section: 'Инвентарь', items: [
+    { id: '/screens', label: 'Экраны', icon: '▣', roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.AGENT, UserRole.CLIENT] },
   ]},
   { section: 'Контент', items: [
     { id: '/mediaplan', label: 'Медиаплан', icon: '▦', roles: [UserRole.ADMIN, UserRole.OPERATOR] },
@@ -45,6 +50,7 @@ function AppShell() {
 
   return (
     <>
+      <ToastContainer />
       <header className="app-header">
         <div className="app-header__logo">
           MYD<span>igital</span> — LED MEDIA BORD
@@ -82,6 +88,7 @@ function AppShell() {
         <main className="app-main">
           <Routes>
             <Route path="/dashboard" element={<VectorDashboard />} />
+            <Route path="/screens" element={<ScreenInventory />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/campaigns/create" element={<CampaignCreate />} />
             <Route path="/mediaplan" element={<MediaPlanTimeline />} />

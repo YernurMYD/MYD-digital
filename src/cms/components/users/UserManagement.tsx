@@ -96,9 +96,9 @@ export default function UserManagement() {
   const handleToggleStatus = async (userId: string) => {
     setTogglingId(userId);
     try {
-      const { data } = await api.patch<User>(`/users/${userId}/toggle-status`);
+      const updated = await mockAuth.toggleStatus(userId);
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, status: data.status } : u)),
+        prev.map((u) => (u.id === userId ? { ...u, status: updated.status } : u)),
       );
     } catch {
       /* swallow */

@@ -3,7 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ScreensModule } from './screens/screens.module';
 import { User } from './users/entities/user.entity';
+import { Screen } from './screens/entities/screen.entity';
 
 @Module({
   imports: [
@@ -19,13 +21,14 @@ import { User } from './users/entities/user.entity';
         username: cfg.get('DB_USER', 'postgres'),
         password: cfg.get('DB_PASSWORD', 'postgres'),
         database: cfg.get('DB_NAME', 'myd_digital'),
-        entities: [User],
+        entities: [User, Screen],
         synchronize: cfg.get('DB_SYNC', 'false') === 'true',
       }),
     }),
 
     AuthModule,
     UsersModule,
+    ScreensModule,
   ],
 })
 export class AppModule {}

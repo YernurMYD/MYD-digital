@@ -1,5 +1,4 @@
 import { UserRole, AccountStatus, type User, type CreateUserPayload } from '../types/auth';
-import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'myd_mock_users';
 const SESSION_KEY = 'myd_mock_session';
@@ -187,7 +186,7 @@ export const mockAuth = {
     }
 
     const newUser: User = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       email: payload.email,
       firstName: payload.firstName,
       lastName: payload.lastName,

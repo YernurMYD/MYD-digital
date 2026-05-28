@@ -12,3 +12,9 @@ export enum AccountStatus {
   PENDING = 'pending',
   ARCHIVED = 'archived',
 }
+
+export enum ScreenStatus {
+  ACTIVE = 'active',
+  MAINTENANCE = 'maintenance',
+  OFFLINE = 'offline',
+}

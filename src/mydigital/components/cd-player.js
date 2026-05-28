@@ -26,8 +26,14 @@ TEMPLATE.innerHTML = `
     width: 100%;
     height: 100%;
     object-fit: cover;
+    background: transparent;
+    z-index: 1;
   }
-  .video-layer.hidden { visibility: hidden; pointer-events: none; }
+  .video-layer.hidden {
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
   .tile-container {
     display: none;
     position: absolute;
@@ -35,6 +41,8 @@ TEMPLATE.innerHTML = `
     width: 100%;
     height: 100%;
     overflow: hidden;
+    z-index: 2;
+    gap: 0;
   }
   .tile-container.active { display: grid; }
   .tile-canvas {
@@ -47,8 +55,6 @@ TEMPLATE.innerHTML = `
 <video class="video-layer hidden" id="videoB"></video>
 <div class="tile-container" id="tileContainer"></div>
 `;
-
-const BLACK = Object.freeze({ r: 0, g: 0, b: 0 });
 
 class CdPlayer extends HTMLElement {
   // ─── Состояние буферизации ───────────────────────────────
@@ -68,12 +74,12 @@ class CdPlayer extends HTMLElement {
 
   // ─── Color sampling ──────────────────────────────────────
   _colorSamplingEnabled = false;
-  /** @type {HTMLCanvasElement} */
+  /** @type {HTMLCanvasElement|OffscreenCanvas|null} */
   _samplingCanvas = null;
-  /** @type {CanvasRenderingContext2D} */
+  /** @type {CanvasRenderingContext2D|null} */
   _samplingCtx = null;
-  /** @type {ImageData|null} */
-  _samplingData = null;
+  /** @type {Uint8ClampedArray|null} */
+  _samplingPixels = null;
   _samplingRafId = 0;
   _samplingWidth = 0;
 
@@ -86,6 +92,10 @@ class CdPlayer extends HTMLElement {
   /** @type {CanvasRenderingContext2D[]} */
   _tileCtxs = [];
   _tileRafId = 0;
+  /** @type {Int32Array|null} Flat layout: [sx,sy,sw,sh, sx,sy,sw,sh, ...] */
+  _tileLayout = null;
+  _lastTileVW = 0;
+  _lastTileVH = 0;
   /** @type {HTMLDivElement} */
   _tileContainer = null;
 
@@ -168,43 +178,47 @@ class CdPlayer extends HTMLElement {
 
   /**
    * Загружает видео в ожидающий буфер и выполняет прогрев декодера.
-   * @param {string} id — идентификатор / URL видео
+   * @param {string} url — URL или идентификатор видео
    * @param {string} [commentText] — необязательный комментарий
    * @returns {Promise<void>}
    */
-  async prepare(id, commentText = '') {
+  async prepare(url, commentText = '') {
     const pending = this._videoPending;
-    this._preparedId = id;
+    this._preparedId = url;
     this._pendingComment = commentText;
 
-    const url = this._resolveUrl(id);
-    pending.src = url;
+    pending.src = this._resolveUrl(url);
     pending.load();
 
-    await this._whenCanPlay(pending);
+    await this._whenCanPlayThrough(pending);
     await this._warmUpDecoder(pending);
   }
 
   /**
    * Меняет местами активное и ожидающее видео.
-   * @param {boolean} [autoplay=false] — запустить воспроизведение после swap
-   * @returns {Promise<void>}
+   *
+   * Порядок:
+   *  1. Dispatch cancelable «swapped» — слушатель может вызвать preventDefault().
+   *  2. Если отменено — ничего не трогаем, возвращаем false.
+   *  3. Иначе: поднимаем z-index нового, переключаем visibility-классы,
+   *     запускаем play() на новом, останавливаем и освобождаем старое.
+   *
+   * @param {boolean} [autoplay=true] — запустить воспроизведение после swap
+   * @returns {Promise<boolean>} — true если swap выполнен, false если отменён
    */
-  async swapVideo(autoplay = false) {
+  async swapVideo(autoplay = true) {
     const event = new CustomEvent('swapped', { cancelable: true });
     this.dispatchEvent(event);
 
-    if (event.defaultPrevented) {
-      this._videoActive.pause();
-      this._playing = false;
-      return;
-    }
+    if (event.defaultPrevented) return false;
 
     const prev = this._videoActive;
     const next = this._videoPending;
 
-    prev.classList.add('hidden');
+    next.style.zIndex = '2';
     next.classList.remove('hidden');
+    prev.classList.add('hidden');
+    prev.style.zIndex = '';
 
     this._videoActive = next;
     this._videoPending = prev;
@@ -220,12 +234,10 @@ class CdPlayer extends HTMLElement {
 
     this._releaseVideo(prev);
 
-    if (this._tilingEnabled) {
-      this._startTileLoop();
-    }
-    if (this._colorSamplingEnabled) {
-      this._restartSamplingLoop();
-    }
+    if (this._tilingEnabled) this._startTileLoop();
+    if (this._colorSamplingEnabled) this._restartSamplingLoop();
+
+    return true;
   }
 
   // ─── Информация ──────────────────────────────────────────
@@ -264,7 +276,9 @@ class CdPlayer extends HTMLElement {
   enableColorSampling() {
     if (this._colorSamplingEnabled) return;
 
-    this._samplingCanvas = document.createElement('canvas');
+    this._samplingCanvas = (typeof OffscreenCanvas !== 'undefined')
+      ? new OffscreenCanvas(1, 1)
+      : document.createElement('canvas');
     this._samplingCanvas.height = 1;
     this._samplingCtx = this._samplingCanvas.getContext('2d', {
       willReadFrequently: true,
@@ -275,28 +289,33 @@ class CdPlayer extends HTMLElement {
 
   /**
    * Возвращает средний RGB верхней строки пикселей.
+   *
+   * Hot path: может вызываться десятки раз за кадр (ambient lighting).
+   * Избегаем лишних аллокаций: нет spread-объектов, нет промежуточных
+   * обёрток — читаем напрямую из Uint8ClampedArray.
+   *
    * @param {number} x — начальная горизонтальная позиция (px)
    * @param {number} [w=1] — ширина области усреднения (px)
    * @returns {{r: number, g: number, b: number}}
    */
   rgbAvgAt(x, w = 1) {
-    if (!this._colorSamplingEnabled || !this._samplingData) return { ...BLACK };
+    const px = this._samplingPixels;
+    if (!px) return { r: 0, g: 0, b: 0 };
 
-    const data = this._samplingData.data;
     const totalW = this._samplingWidth;
-    if (totalW === 0) return { ...BLACK };
+    if (totalW === 0) return { r: 0, g: 0, b: 0 };
 
     const startX = Math.max(0, Math.min(x, totalW - 1));
     const endX = Math.min(startX + w, totalW);
     const count = endX - startX;
-    if (count <= 0) return { ...BLACK };
+    if (count <= 0) return { r: 0, g: 0, b: 0 };
 
     let rSum = 0, gSum = 0, bSum = 0;
     for (let i = startX; i < endX; i++) {
-      const off = i * 4;
-      rSum += data[off];
-      gSum += data[off + 1];
-      bSum += data[off + 2];
+      const off = i << 2;
+      rSum += px[off];
+      gSum += px[off + 1];
+      bSum += px[off + 2];
     }
 
     return {
@@ -381,10 +400,10 @@ class CdPlayer extends HTMLElement {
     await this._whenSeeked(video);
   }
 
-  _whenCanPlay(video) {
-    if (video.readyState >= 3) return Promise.resolve();
+  _whenCanPlayThrough(video) {
+    if (video.readyState >= 4) return Promise.resolve();
     return new Promise((resolve) => {
-      video.addEventListener('canplay', resolve, { once: true });
+      video.addEventListener('canplaythrough', resolve, { once: true });
     });
   }
 
@@ -402,10 +421,14 @@ class CdPlayer extends HTMLElement {
   }
 
   _resolveUrl(id) {
-    if (id.startsWith('http') || id.startsWith('/') || id.startsWith('blob:')) {
-      return id;
-    }
-    return `/videos/${id}`;
+    const url = (id.startsWith('http') || id.startsWith('/') || id.startsWith('blob:'))
+      ? id
+      : `/videos/${id}`;
+
+    if (this._useCache || this._useCacheInDev) return url;
+
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}_t=${Date.now()}`;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -416,23 +439,33 @@ class CdPlayer extends HTMLElement {
     if (this._samplingRafId) {
       cancelAnimationFrame(this._samplingRafId);
     }
+    this._samplingPixels = null;
     this._sampleLoop();
   }
 
   /**
-   * Петля семплирования: рисуем ТОЛЬКО верхнюю строку активного видео
-   * в canvas 1px высотой, затем читаем getImageData один раз за кадр.
-   * Троттлинг: каждые 2 кадра (~30 Гц при 60 fps).
+   * Петля семплирования: рисуем ТОЛЬКО верхнюю строку (1px) активного видео
+   * в OffscreenCanvas, затем читаем getImageData раз за 2 кадра.
+   *
+   * Оптимизации:
+   *  - Троттлинг: каждый 2-й rAF (~30 Гц при 60fps дисплее)
+   *  - currentTime-дедупликация: пропуск если видеокадр не сменился
+   *  - _samplingPixels хранит Uint8ClampedArray напрямую (без обёртки ImageData)
    */
   _sampleLoop() {
     let frame = 0;
+    let lastTime = -1;
     const tick = () => {
       this._samplingRafId = requestAnimationFrame(tick);
 
-      if (++frame & 1) return; // каждый 2-й кадр
+      if (++frame & 1) return;
 
       const v = this._videoActive;
       if (v.paused || v.ended || !v.videoWidth) return;
+
+      const t = v.currentTime;
+      if (t === lastTime) return;
+      lastTime = t;
 
       const w = v.videoWidth;
       if (this._samplingCanvas.width !== w) {
@@ -441,7 +474,7 @@ class CdPlayer extends HTMLElement {
       this._samplingWidth = w;
 
       this._samplingCtx.drawImage(v, 0, 0, w, 1, 0, 0, w, 1);
-      this._samplingData = this._samplingCtx.getImageData(0, 0, w, 1);
+      this._samplingPixels = this._samplingCtx.getImageData(0, 0, w, 1).data;
     };
     this._samplingRafId = requestAnimationFrame(tick);
   }
@@ -461,6 +494,7 @@ class CdPlayer extends HTMLElement {
     const count = this._tilesX * this._tilesY;
     this._tileCanvases = new Array(count);
     this._tileCtxs = new Array(count);
+    this._tileLayout = new Int32Array(count * 4);
 
     for (let i = 0; i < count; i++) {
       const c = document.createElement('canvas');
@@ -475,14 +509,64 @@ class CdPlayer extends HTMLElement {
     }
   }
 
+  /**
+   * Предвычисляет геометрию тайлов при изменении размеров видео.
+   *
+   * Результат сохраняется в _tileLayout (Int32Array):
+   *   [sx0, sy0, sw0, sh0, sx1, sy1, sw1, sh1, ...]
+   *
+   * Нечётные размеры обрабатываются автоматически:
+   * последний ряд/столбец получает оставшиеся пиксели.
+   * Например 3839×2159 при 2×2:
+   *   tile[0] = 1920×1080, tile[1] = 1919×1080
+   *   tile[2] = 1920×1079, tile[3] = 1919×1079
+   */
+  _computeTileLayout(vw, vh) {
+    this._lastTileVW = vw;
+    this._lastTileVH = vh;
+
+    const tilesX = this._tilesX;
+    const tilesY = this._tilesY;
+    const baseTileW = Math.ceil(vw / tilesX);
+    const baseTileH = Math.ceil(vh / tilesY);
+    const layout = this._tileLayout;
+
+    let idx = 0;
+    for (let row = 0; row < tilesY; row++) {
+      const sy = row * baseTileH;
+      const sh = Math.min(baseTileH, vh - sy);
+
+      for (let col = 0; col < tilesX; col++) {
+        const sx = col * baseTileW;
+        const sw = Math.min(baseTileW, vw - sx);
+
+        const canvas = this._tileCanvases[idx];
+        if (canvas.width !== sw || canvas.height !== sh) {
+          canvas.width = sw;
+          canvas.height = sh;
+        }
+
+        const off = idx << 2;
+        layout[off] = sx;
+        layout[off + 1] = sy;
+        layout[off + 2] = sw;
+        layout[off + 3] = sh;
+        idx++;
+      }
+    }
+  }
+
   _destroyTileCanvases() {
     if (this._tileRafId) {
       cancelAnimationFrame(this._tileRafId);
       this._tileRafId = 0;
     }
-    this._tileContainer.innerHTML = '';
+    this._tileContainer.replaceChildren();
     this._tileCanvases = [];
     this._tileCtxs = [];
+    this._tileLayout = null;
+    this._lastTileVW = 0;
+    this._lastTileVH = 0;
   }
 
   _destroyTiles() {
@@ -496,13 +580,17 @@ class CdPlayer extends HTMLElement {
     if (this._tileRafId) {
       cancelAnimationFrame(this._tileRafId);
     }
+    this._lastTileVW = 0;
+    this._lastTileVH = 0;
     this._renderTiles();
   }
 
   /**
-   * Основной рендер-цикл тайлинга.
-   * Каждый кадр: вычисляем область каждого тайла и рисуем drawImage
-   * из активного видео на соответствующий canvas.
+   * Горячий рендер-цикл тайлинга.
+   *
+   * Геометрия тайлов (sx, sy, sw, sh) читается из предвычисленного
+   * Int32Array — никаких Math.ceil / Math.min в горячем пути.
+   * Layout пересчитывается только при смене разрешения видео.
    */
   _renderTiles() {
     const tick = () => {
@@ -513,36 +601,28 @@ class CdPlayer extends HTMLElement {
 
       const vw = v.videoWidth;
       const vh = v.videoHeight;
-      const tileW = Math.ceil(vw / this._tilesX);
-      const tileH = Math.ceil(vh / this._tilesY);
+      if (vw !== this._lastTileVW || vh !== this._lastTileVH) {
+        this._computeTileLayout(vw, vh);
+      }
 
-      let idx = 0;
-      for (let row = 0; row < this._tilesY; row++) {
-        const sy = row * tileH;
-        const sh = Math.min(tileH, vh - sy);
+      const layout = this._tileLayout;
+      const ctxs = this._tileCtxs;
+      const count = ctxs.length;
 
-        for (let col = 0; col < this._tilesX; col++) {
-          const sx = col * tileW;
-          const sw = Math.min(tileW, vw - sx);
+      for (let i = 0; i < count; i++) {
+        const off = i << 2;
+        const sx = layout[off];
+        const sy = layout[off + 1];
+        const sw = layout[off + 2];
+        const sh = layout[off + 3];
 
-          const canvas = this._tileCanvases[idx];
-          const ctx = this._tileCtxs[idx];
-
-          if (canvas.width !== sw || canvas.height !== sh) {
-            canvas.width = sw;
-            canvas.height = sh;
-          }
-
-          ctx.clearRect(0, 0, sw, sh);
-          ctx.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
-          idx++;
-        }
+        ctxs[i].clearRect(0, 0, sw, sh);
+        ctxs[i].drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
       }
     };
     this._tileRafId = requestAnimationFrame(tick);
   }
 
-  /** Скругление углов для крайних тайлов в сетке */
   _applyTileRounding() {
     const r = this._borderRadius;
     const total = this._tileCanvases.length;
@@ -571,6 +651,10 @@ class CdPlayer extends HTMLElement {
   disconnectedCallback() {
     if (this._samplingRafId) cancelAnimationFrame(this._samplingRafId);
     if (this._tileRafId) cancelAnimationFrame(this._tileRafId);
+    this._samplingPixels = null;
+    this._samplingCanvas = null;
+    this._samplingCtx = null;
+    this._tileLayout = null;
     this._releaseVideo(this._videoA);
     this._releaseVideo(this._videoB);
   }
