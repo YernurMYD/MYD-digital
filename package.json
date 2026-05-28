@@ -5,22 +5,28 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server:install": "cd server && npm install",
+    "server:dev": "cd server && npx nest start --watch",
+    "server:build": "cd server && npx nest build"
   },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.2.1",
     "@nestjs/config": "^4.0.4",
     "@theatre/core": "^0.7.2",
     "@theatre/studio": "^0.7.2",
+    "axios": "^1.16.1",
     "ioredis": "^5.11.0",
     "mqtt": "^5.15.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.15.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^6.0.3",
     "vite": "^8.0.14"
   }
 }
