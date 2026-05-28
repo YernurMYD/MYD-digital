@@ -1,0 +1,26 @@
+{
+  "name": "mydigital-widget-editor",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@nestjs-modules/ioredis": "^2.2.1",
+    "@nestjs/config": "^4.0.4",
+    "@theatre/core": "^0.7.2",
+    "@theatre/studio": "^0.7.2",
+    "ioredis": "^5.11.0",
+    "mqtt": "^5.15.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^8.0.14"
+  }
+}

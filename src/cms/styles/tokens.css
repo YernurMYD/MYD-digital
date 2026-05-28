@@ -1,0 +1,69 @@
+:root {
+  /* Surface */
+  --bg-primary: #0b0e14;
+  --bg-secondary: #111620;
+  --bg-card: #161b26;
+  --bg-card-hover: #1c2333;
+  --bg-input: #1a1f2e;
+  --bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Borders */
+  --border-subtle: #1e2536;
+  --border-default: #2a3146;
+  --border-focus: #4e7aff;
+
+  /* Text */
+  --text-primary: #e8ecf4;
+  --text-secondary: #8892a8;
+  --text-muted: #565f75;
+  --text-inverse: #0b0e14;
+
+  /* Status */
+  --status-online: #22c55e;
+  --status-online-bg: rgba(34, 197, 94, 0.12);
+  --status-warning: #eab308;
+  --status-warning-bg: rgba(234, 179, 8, 0.12);
+  --status-error: #ef4444;
+  --status-error-bg: rgba(239, 68, 68, 0.12);
+  --status-offline: #6b7280;
+  --status-offline-bg: rgba(107, 114, 128, 0.12);
+
+  /* Campaign statuses */
+  --status-draft: #6b7280;
+  --status-draft-bg: rgba(107, 114, 128, 0.12);
+  --status-pending: #eab308;
+  --status-pending-bg: rgba(234, 179, 8, 0.12);
+  --status-active: #22c55e;
+  --status-active-bg: rgba(34, 197, 94, 0.12);
+  --status-completed: #3b82f6;
+  --status-completed-bg: rgba(59, 130, 246, 0.12);
+  --status-paused: #f97316;
+  --status-paused-bg: rgba(249, 115, 22, 0.12);
+
+  /* Accent */
+  --accent: #4e7aff;
+  --accent-hover: #6b8eff;
+  --accent-subtle: rgba(78, 122, 255, 0.12);
+
+  /* Category colors */
+  --cat-system: #8b5cf6;
+  --cat-system-bg: rgba(139, 92, 246, 0.15);
+  --cat-commercial: #06b6d4;
+  --cat-commercial-bg: rgba(6, 182, 212, 0.15);
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --header-height: 56px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}

@@ -1,0 +1,246 @@
+/* ═══ Summary row ══════════════════════════════════ */
+
+.vd-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.vd-summary__card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vd-summary__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.vd-summary__label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vd-summary__card--online  .vd-summary__value { color: var(--status-online);  }
+.vd-summary__card--warning .vd-summary__value { color: var(--status-warning); }
+.vd-summary__card--error   .vd-summary__value { color: var(--status-error);   }
+.vd-summary__card--offline .vd-summary__value { color: var(--status-offline); }
+
+/* ═══ Toolbar ══════════════════════════════════════ */
+
+.vd-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.vd-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.vd-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.vd-filter:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.vd-filter--active {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vd-filter__count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+.vd-search {
+  width: 280px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.vd-search:focus {
+  border-color: var(--border-focus);
+}
+
+.vd-search::placeholder {
+  color: var(--text-muted);
+}
+
+/* ═══ Device grid ══════════════════════════════════ */
+
+.vd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.vd-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* ═══ Device card ══════════════════════════════════ */
+
+.vd-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.vd-card:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.vd-card--online  { border-left: 3px solid var(--status-online);  }
+.vd-card--warning { border-left: 3px solid var(--status-warning); }
+.vd-card--error   { border-left: 3px solid var(--status-error);   }
+.vd-card--offline { border-left: 3px solid var(--status-offline); opacity: 0.65; }
+
+.vd-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vd-card__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vd-card__alerts {
+  background: var(--status-error);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vd-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vd-card__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.vd-card__serial {
+  font-family: var(--font-mono);
+}
+
+/* ─── Metrics ─────────────────────────────── */
+
+.vd-card__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vd-metric__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3px;
+}
+
+.vd-metric__label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.vd-metric__value--ok   { color: var(--status-online);  }
+.vd-metric__value--warn { color: var(--status-warning); }
+.vd-metric__value--crit { color: var(--status-error);   }
+
+.vd-metric__track {
+  height: 4px;
+  background: var(--bg-primary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vd-metric__fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.vd-metric__fill--ok   { background: var(--status-online);  }
+.vd-metric__fill--warn { background: var(--status-warning); }
+.vd-metric__fill--crit { background: var(--status-error);   }
+
+.vd-card__offline-msg {
+  padding: 16px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.vd-card__footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+}
